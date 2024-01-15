@@ -72,86 +72,92 @@ export function createShowHideFn(editor: Editor) {
     /**
      * 设置拖拽事件
      * @param $drag 拖拽框的domElement
-     * @param $textContainerElem 编辑器实例
      */
-    function bindDragEvents($drag: DomElement, $container: DomElement) {
+    function bindDragEvents($drag: DomElement) {
         $drag.on('click', function (e: Event) {
             e.stopPropagation()
         })
-        $drag.on('mousedown', '.w-e-img-drag-rb', (e: MouseEvent) => {
-            // e.stopPropagation()
-            e.preventDefault()
+        $drag.on('mousedown', '.w-e-img-drag-rb', dragMousedownHandler)
+    }
+    function offDragEvents($drag: DomElement) {
+        $drag.off('mousedown', '.w-e-img-drag-rb', dragMousedownHandler);
+    }
+    function dragMousedownHandler(e: MouseEvent) {
+        // e.stopPropagation()
+        e.preventDefault()
 
-            if (!$imgTarget) return
+        if (!$imgTarget) return
 
-            const firstX = e.clientX
-            const firstY = e.clientY
-            const boxRect = $container.getBoundingClientRect()
-            const imgRect = $imgTarget.getBoundingClientRect()
-            const width = imgRect.width
-            const height = imgRect.height
-            const left = imgRect.left - boxRect.left
-            const top = imgRect.top - boxRect.top
-            const ratio = width / height
+        const firstX = e.clientX
+        const firstY = e.clientY
+        const boxRect = $textContainerElem.getBoundingClientRect()
+        const imgRect = $imgTarget.getBoundingClientRect()
+        const width = imgRect.width
+        const height = imgRect.height
+        const left = imgRect.left - boxRect.left
+        const top = imgRect.top - boxRect.top
+        const ratio = width / height
 
-            let setW = width
-            let setH = height
-            const $document = $(document)
+        let setW = width
+        let setH = height
+        const $document = $(document)
 
-            function offEvents() {
-                $document.off('mousemove', mouseMoveHandler)
-                $document.off('mouseup', mouseUpHandler)
+        function offEvents () {
+            $document.off('mousemove', mouseMoveHandler)
+            $document.off('mouseup', mouseUpHandler)
+        }
+
+        function mouseMoveHandler (ev: MouseEvent) {
+            ev.stopPropagation()
+            ev.preventDefault()
+
+            setW = width + (ev.clientX - firstX)
+            setH = height + (ev.clientY - firstY)
+
+            // 等比计算
+            if (setW / setH != ratio) {
+                setH = setW / ratio
             }
 
-            function mouseMoveHandler(ev: MouseEvent) {
-                ev.stopPropagation()
-                ev.preventDefault()
+            setW = parseFloat(setW.toFixed(2))
+            setH = parseFloat(setH.toFixed(2))
 
-                setW = width + (ev.clientX - firstX)
-                setH = height + (ev.clientY - firstY)
-
-                // 等比计算
-                if (setW / setH != ratio) {
-                    setH = setW / ratio
-                }
-
-                setW = parseFloat(setW.toFixed(2))
-                setH = parseFloat(setH.toFixed(2))
-
-                $drag
-                    .find('.w-e-img-drag-show-size')
-                    .text(
-                        `${setW.toFixed(2).replace('.00', '')}px * ${setH
-                            .toFixed(2)
-                            .replace('.00', '')}px`
-                    )
-                setDragStyle($drag, setW, setH, left, top)
-            }
-            $document.on('mousemove', mouseMoveHandler)
-
-            function mouseUpHandler() {
-                $imgTarget.attr('width', setW + '')
-                $imgTarget.attr('height', setH + '')
-                const newImgRect = $imgTarget.getBoundingClientRect()
-                setDragStyle(
-                    $drag,
-                    setW,
-                    setH,
-                    newImgRect.left - boxRect.left,
-                    newImgRect.top - boxRect.top
+            $drag
+                .find('.w-e-img-drag-show-size')
+                .text(
+                    `${setW.toFixed(2).replace('.00', '')}px * ${setH
+                        .toFixed(2)
+                        .replace('.00', '')}px`
                 )
+            setDragStyle($drag, setW, setH, left, top)
+        }
 
-                // 解绑事件
-                offEvents()
-            }
-            $document.on('mouseup', mouseUpHandler)
+        $document.on('mousemove', mouseMoveHandler)
+
+        function mouseUpHandler () {
+            $imgTarget.attr('width', setW + '')
+            $imgTarget.attr('height', setH + '')
+            const newImgRect = $imgTarget.getBoundingClientRect()
+            setDragStyle(
+                $drag,
+                setW,
+                setH,
+                newImgRect.left - boxRect.left,
+                newImgRect.top - boxRect.top
+            )
 
             // 解绑事件
-            $document.on('mouseleave', offEvents)
-        })
+            offEvents()
+        }
+
+        $document.on('mouseup', mouseUpHandler)
+
+        // 解绑事件
+        $document.on('mouseleave', offEvents)
     }
 
-    // 显示拖拽框
+
+        // 显示拖拽框
     function showDrag($target: DomElement) {
         if (UA.isIE()) return false
         if ($target) {
@@ -166,11 +172,12 @@ export function createShowHideFn(editor: Editor) {
     }
 
     // 事件绑定
-    bindDragEvents($drag, $textContainerElem)
+    bindDragEvents($drag)
 
     // 后期改成 blur 触发
     $(document).on('click', hideDrag)
     editor.beforeDestroy(function () {
+        offDragEvents($drag);
         $(document).off('click', hideDrag)
     })
 
